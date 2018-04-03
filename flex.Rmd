@@ -1,0 +1,237 @@
+---
+title: "Modelos de atribución multicanal"
+resource_files:
+- rchannelattribution_0.1.0.tar.gz
+runtime: shiny
+output:
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    theme: united
+---
+
+```{r setup, include=FALSE}
+
+# By default, the directories in .libPaths() aren't writable on shinyapps.io, so
+# create a subdir where we'll install our package.
+if (!file.exists("R-lib")) {
+  dir.create("R-lib")
+}
+# Unfortunately, there's no way to get deployapp() to ignore this directory, so
+# make sure to remove it locally before you call deployapp(). This can be done
+# with:
+#   unlink("pkgInst/R-lib", recursive = TRUE)
+
+# You may also need to restart R before calling deployapp(), because calling
+# runApp() will modify your libpath (below), which can confuse deployapp().
+
+# Add ./R-lib/ to the libPaths
+.libPaths( c(normalizePath("R-lib/"), .libPaths()) )
+
+# Install the package if needed.
+if (!do.call(require, list("rchannelattribution"))) {
+  install.packages("rchannelattribution_0.1.0.tar.gz", repos = NULL, type = "source")
+}
+
+# Instead of `library(myPackage)`, we'll use do.call, to evade deployapp's
+# checks for packages installed locally from source.
+do.call(library, list("rchannelattribution"))
+
+library(flexdashboard)
+# library(rchannelattribution)
+library(highcharter)
+library(tidyverse)
+
+
+```
+
+Sobre esta herramienta
+===================================== 
+
+Modelos de atribución
+===================================== 
+
+Inputs {.sidebar}
+-----------------------------------------------------------------------
+
+```{r}
+
+   fileInput("upload", "Choose CSV File",
+                  multiple = TRUE,
+                  accept = c("text/csv",
+                             "text/comma-separated-values,text/plain",
+                             ".csv",
+                             ".zip"))
+        
+        actionButton("process", "Process uploaded data")
+
+
+```
+
+
+
+Row
+-----------------------------------------------------------------------
+
+
+
+### Resultados del modelo
+
+```{r}
+ model_data <- eventReactive(input$process, {
+    if (is.null(input$upload))
+      return(NULL)
+   
+    tmp_dir <- file.path(getwd(), 'tmp')
+    
+    on.exit(unlink(tmp_dir, recursive = T, force = T))
+
+    cat(tmp_dir,"\n")
+    
+    in_file <- input$upload
+    cat(in_file$datapath,"\n")
+    
+    file_ext <- tolower(regmatches(in_file$name, regexpr("\\.[[:alnum:]]{1,5}$", in_file$name)))
+    
+    if (file_ext %in% c('.zip')) {
+      all_files <- unzip(zipfile = in_file$datapath, exdir = tmp_dir)
+      all_files <- list.files('tmp', full.names = T)
+      csv_files <- list.files('tmp', full.names = T, pattern = "*.csv")
+      unlink(setdiff(all_files, csv_files),recursive = T)
+    }
+    
+    import_path <- tmp_dir
+    attribution_res <- data_driven_model(import_path)
+    attribution_res 
+    
+
+
+  })
+
+  # output$models <- renderDataTable({
+  # 
+  #   req(model_data())
+  # 
+  #   validate(
+  #     need(model_data(), "getting user details")
+  #   )
+  # 
+  #   model_data()$data
+  # 
+  # }, options = list(paging = FALSE,searching = FALSE))
+  
+DT::renderDataTable({
+  req(model_data())
+  validate(
+      need(model_data(), "getting user details")
+  )
+  model_data()$data %>% 
+    select(path, contains('total'))
+}, options = list(paging = FALSE,searching = FALSE))  
+  
+```
+
+
+
+
+
+
+### Comparativa con otros modelos
+
+```{r}
+renderHighchart({
+  req(model_data())
+  validate(
+      need(model_data(), "getting user details")
+  )
+  conversion_value.df <- model_data()$data
+  highchart() %>% 
+      hc_chart(type = "column") %>% 
+      hc_xAxis(categories = conversion_value.df$path) %>% 
+      hc_add_series(name = "Modelo basado en datos", data = conversion_value.df$total_conversion_value) %>% 
+      hc_add_series(name = "Última interacción", data = conversion_value.df$last_touch_value) %>% 
+      hc_add_series(name = "Primera interacción", data = conversion_value.df$first_touch_value) %>% 
+      hc_add_series(name = "Lineal", data = conversion_value.df$linear_touch_value) %>% 
+      hc_yAxis(gridLineWidth = 0,labels = list(format = "{value} €", useHTML = TRUE, title = list(text = "Ingresos"))) %>% 
+      hc_xAxis(title = list(text = "Canal")) %>% 
+      hc_yAxis(title = list(text = "Ingresos")) %>% 
+      hc_tooltip(headerFormat = "<b>{series.name}</b><br>",
+                 pointFormat = "{point.y} euros")  %>% 
+      hc_title(text = "Ingresos por canal y por modelo de atribución",
+               useHTML = TRUE, margin = 50,
+               align = "left",
+               style = list(color = "#999999"))
+})
+
+```
+
+
+
+Row {.tabset .tabset-fade}
+-----------------------------------------------------------------------
+
+
+### Interacciones entre canales
+
+```{r}
+renderHighchart({
+  req(model_data())
+  validate(
+      need(model_data(), "getting user details")
+  )
+
+tm <- model_data()$transition_matrix %>% 
+  spread(key= channel_to, value = transition_probability) %>% 
+  replace(., is.na(.), 0)
+
+tm_mat <- as.matrix(tm[-1])
+row.names(tm_mat) <- tm$channel_from
+hchart(tm_mat, type = "heatmap") %>% 
+  hc_colorAxis(stops = color_stops(colors = rev(viridis::inferno(8)))) %>% 
+  hc_xAxis(gridLineWidth = 0,labels = list(format = "{value}", useHTML = TRUE, title = list(text = "Ingresos"))) %>% 
+  hc_xAxis(title = list(text = "Días tras el primer impacto")) %>% 
+  hc_yAxis(title = list(text = "Canal"))
+})
+
+
+
+```
+
+
+### Importancia del canal
+```{r}
+
+
+renderHighchart({
+  req(model_data())
+  validate(
+      need(model_data(), "getting user details")
+  )
+
+  re_df <- model_data()$removal_effect
+  
+  print(head(re_df))
+
+  highchart() %>% 
+    hc_chart(type = "line", polar=T) %>% 
+    hc_xAxis(categories = re_df$channel_name) %>% 
+    hc_add_series(name = "Modelo basado en datos", 
+                  data = re_df$removal_effects_conversion,
+                  dataLabels = list(enabled = TRUE, format = '{point.y:.1f}')) %>% 
+    # hc_add_series(name = "Última interacción", data = re_df$removal_effects_conversion_value) %>% 
+    hc_yAxis(type = "logarithmic",gridLineWidth = 0,labels = list(enabled = F, format = "{value} €", useHTML = TRUE, title = list(text = "Ingresos"))) %>% 
+    hc_xAxis(title = list(text = "Canal")) %>% 
+    hc_yAxis(title = list(text = "Ingresos")) %>% 
+    hc_tooltip(headerFormat = "<b>{series.name}</b><br>",
+               pointFormat = "{point.y}€")  %>% 
+    hc_title(text = "Ingresos por canal y por modelo de atribución",
+             useHTML = TRUE, margin = 50,
+             align = "left",
+             style = list(color = "#999999")) 
+})
+```
+
+Ayuda
+===================================== 
+
+
+
