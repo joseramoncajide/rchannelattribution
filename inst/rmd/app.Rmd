@@ -6,8 +6,12 @@ runtime: shiny
 output:
   flexdashboard::flex_dashboard:
     orientation: rows
-    theme: united
+    theme: lumen
 ---
+
+<style>                     
+#image img {max-width: 500px; width: 500px; height: 500px}
+</style> 
 
 ```{r setup, include=FALSE}
 library(flexdashboard)
@@ -15,10 +19,25 @@ library(rchannelattribution)
 library(highcharter)
 library(tidyverse)
 library(viridis)
+library(knitr)
+library(kableExtra)
 ```
 
-Sobre esta herramienta
+Bienvedid@
 ===================================== 
+
+<!-- ![](www/byl.png) -->
+
+```{r}
+# tags$head(tags$style(
+#         type="text/css",
+#         "#image img {max-width: 100%; width: 100%; height: auto}"
+#     ))
+# HTML("<img src ='www/byl.png'>")
+div(id="image", img(src='www/byl.png'))
+```
+
+
 
 Modelos de atribución
 ===================================== 
@@ -27,17 +46,17 @@ Inputs {.sidebar}
 -----------------------------------------------------------------------
 
 ```{r}
+fileInput("upload", 
+          buttonLabel = "Examinar ...",
+          label = "Importar rutas de conversión:",
+          placeholder = "Archivo zip", 
+          multiple = TRUE,
+          accept = c("text/csv",
+                     "text/comma-separated-values,text/plain",
+                     ".csv",
+                     ".zip"))
 
-
-
-   fileInput("upload", "Choose CSV File",
-                  multiple = TRUE,
-                  accept = c("text/csv",
-                             "text/comma-separated-values,text/plain",
-                             ".csv",
-                             ".zip"))
-        
-        actionButton("process", "Process uploaded data")
+actionButton("process", "Calcular modelos")
 
 
 ```
@@ -93,15 +112,32 @@ Row
   #   model_data()$data
   # 
   # }, options = list(paging = FALSE,searching = FALSE))
-  
-DT::renderDataTable({
+
+renderUI( {
   req(model_data())
-  validate(
-      need(model_data(), "getting user details")
-  )
-  model_data()$data %>% 
-    select(path, contains('total'))
-}, options = list(paging = FALSE,searching = FALSE))  
+    validate(
+        need(model_data(), "getting user details")
+    )
+  df <- model_data()$data %>% 
+    select(path, contains('total')) %>% 
+    mutate(total_conversion_value = cell_spec(
+    format(round(total_conversion_value, 2), nsmall = 2), "html", color = "white", bold = T,
+    background = "#7FC64F", align = "right")) %>%
+  kable("html", escape = F) %>%
+  kable_styling(bootstrap_options = c("striped", "condensed","hover")) %>%
+  scroll_box()
+
+  HTML(df)
+})
+  
+# DT::renderDataTable({
+#   req(model_data())
+#   validate(
+#       need(model_data(), "getting user details")
+#   )
+#   model_data()$data %>% 
+#     select(path, contains('total'))
+# }, options = list(paging = FALSE,searching = FALSE))  
   
 ```
 
