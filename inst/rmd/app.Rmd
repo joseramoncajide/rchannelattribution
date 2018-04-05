@@ -26,18 +26,7 @@ library(kableExtra)
 Bienvedid@
 ===================================== 
 
-<!-- ![](www/byl.png) -->
-
-```{r}
-# tags$head(tags$style(
-#         type="text/css",
-#         "#image img {max-width: 100%; width: 100%; height: auto}"
-#     ))
-# HTML("<img src ='www/byl.png'>")
-div(id="image", img(src='www/byl.png'))
-```
-
-
+![](www/logo.gif)
 
 Modelos de atribución
 ===================================== 

@@ -23,7 +23,16 @@ imported_data_res <- import_path %>% load_from_csv() %>% preprocess_mcf_data() %
 
 imported_data_res$data %>% summarise(tot_modelo = sum(total_conversion_value), tot_first = sum(first_touch_value))
 
-imported_data_res$data %>% View()
+library(knitr)
+imported_data_res$data %>%
+  mutate(total_conversion_value = cell_spec(
+    format(round(total_conversion_value, 2), nsmall = 2), "html", color = "white", bold = T,
+    background = "#7FC64F")) %>%
+  kable("html", escape = F) %>%
+  kable_styling(bootstrap_options = c("striped", "condensed","hover", "responsive"), full_width = F, position = "left") %>%
+  scroll_box()
+
+
 
 data_driven_model <- function(import_path) {
   data_driven_model_res <- import_path %>%
@@ -133,3 +142,5 @@ devtools::install_github("joseramoncajide/rchannelattribution")
 library(rchannelattribution)
 flex_app_dir <- system.file("rmd/app.Rmd", package = "rchannelattribution")
 rmarkdown::run(flex_app_dir)
+rmarkdown::run(flex_app_dir, flex_dashboard(theme = "yeti"))
+flex_dashboard(param="byl")
