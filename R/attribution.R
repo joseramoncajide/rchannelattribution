@@ -138,7 +138,7 @@ model_mcf_data <- function(mcf){
     left_join(unique_paths.df, by = c('path_code' = 'path_code')) %>%
     rename(channel_to= path) %>%
     mutate(channel_to = if_else(is.na(channel_to), "(conversion)", channel_to)) %>%
-    mutate_at(vars(contains("transition_probability")), funs(round),4) %>%
+    mutate_at(vars(dplyr::contains("transition_probability")), funs(round),4) %>%
     select(channel_from, channel_to,transition_probability) -> transition_matrix
 
   R <- H %>% inner_join(M$result, by = c('channel_name' = 'channel_name')) %>%
@@ -148,7 +148,7 @@ model_mcf_data <- function(mcf){
     inner_join(mcf$paths, by = c('path_code' = 'path_code')) %>%
     dplyr::select(-path_code) %>%
     dplyr::select(path, everything()) %>%
-    mutate_at(vars(contains("value"),contains("conversions")), funs(round), 2) %>%
+    mutate_at(vars(dplyr::contains("value"),dplyr::contains("conversions")), funs(round), 2) %>%
     arrange(desc(total_conversions))
 
   R <- full_join(R, mcf_unique.df %>% select(-path_code)) %>%

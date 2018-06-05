@@ -15,13 +15,26 @@ output:
 
 ```{r setup, include=FALSE}
 library(flexdashboard)
-library(rchannelattribution)
+library(ChannelAttribution)
+# library(rchannelattribution)
 library(highcharter)
 library(tidyverse)
 library(viridis)
 library(knitr)
 library(kableExtra)
 library(readr)
+
+# https://gist.github.com/wch/c3653fb39a00c63b33cf
+if (!file.exists("R-lib")) {
+  dir.create("R-lib")
+}
+
+.libPaths( c(normalizePath("R-lib/"), .libPaths()) )
+
+if (!do.call(require, list("rchannelattribution"))) {
+  install.packages("rchannelattribution_0.1.1.tar.gz", repos = NULL, type = "source")
+}
+do.call(library, list("rchannelattribution"))
 ```
 
 Bienvedid@
