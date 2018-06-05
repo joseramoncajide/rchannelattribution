@@ -1,7 +1,7 @@
 ---
 title: "Modelos de atribución multicanal"
 resource_files:
-- rchannelattribution_0.1.0.tar.gz
+- rchannelattribution_0.1.1.tar.gz
 runtime: shiny
 output:
   flexdashboard::flex_dashboard:
@@ -21,6 +21,7 @@ library(tidyverse)
 library(viridis)
 library(knitr)
 library(kableExtra)
+library(readr)
 ```
 
 Bienvedid@
@@ -47,6 +48,16 @@ fileInput("upload",
 
 actionButton("process", "Calcular modelos")
 
+## Download Button
+
+p()
+p()
+
+renderUI({
+  if(!is.null(model_data()) & !is.null(input$upload)) {
+    downloadButton("download_csv", "Descargar Resultado")
+  }
+})
 
 ```
 
@@ -108,9 +119,10 @@ renderUI( {
         need(model_data(), "getting user details")
     )
   df <- model_data()$data %>% 
-    select(path, contains('total')) %>% 
-    mutate(total_conversion_value = cell_spec(
-    format(round(total_conversion_value, 2), nsmall = 2), "html", color = "white", bold = T,
+    select(path, dplyr::contains('total')) %>% 
+    rename(Canal = path, Conversiones = total_conversions, Valor = total_conversion_value) %>% 
+    mutate(Valor = cell_spec(
+    format(round(Valor, 2), nsmall = 2), "html", color = "white", bold = T,
     background = "#7FC64F", align = "right")) %>%
   kable("html", escape = F) %>%
   kable_styling(bootstrap_options = c("striped", "condensed","hover")) %>%
@@ -118,6 +130,19 @@ renderUI( {
 
   HTML(df)
 })
+
+output$download_csv <- downloadHandler(
+    filename = function() { paste('attribution.csv', sep='') },
+    content = function(file) {
+
+      readr::write_excel_csv2(model_data()$data %>% 
+    select(path, dplyr::contains('total')) %>% 
+    rename(Canal = path, Conversiones = total_conversions, Valor = total_conversion_value),path =file)
+    #   write.table(model_data()$data %>% 
+    # select(path, contains('total')) %>% 
+    # rename(Canal = path, Conversiones = total_conversions, Valor = total_conversion_value), file, sep = ";", row.names = F,fileEncoding = 'UTF-8' )
+    }
+  )
   
 # DT::renderDataTable({
 #   req(model_data())
